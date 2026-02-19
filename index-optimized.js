@@ -149,13 +149,9 @@ async function start() {
             authStrategy: new RemoteAuth({
                 clientId: 'whatsapp-otp-bot',
                 store: store,
-                backupSyncIntervalMs: 300000 // ✅ تم التعديل إلى 5 دقائق لحل مشكلة الخطأ وتخفيف الضغط
+                backupSyncIntervalMs: 300000 
             }),
-            webVersion: '2.3000.1032169565',
-            webVersionCache: {
-                type: 'remote',
-                remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1032169565.html'
-            },
+            // ❌ تم حذف webVersion و webVersionCache لتجنب التعليق
             puppeteer: {
                 headless: true,
                 executablePath: process.env.CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
@@ -186,7 +182,8 @@ async function start() {
                     '--no-pings',
                     '--password-store=basic',
                     '--use-mock-keychain',
-                    '--disable-blink-features=AutomationControlled'
+                    '--disable-blink-features=AutomationControlled',
+                    '--js-flags="--max-old-space-size=250"' // ✅ تحديد الرام لتجنب انهيار السيرفر
                 ],
             }
         });
