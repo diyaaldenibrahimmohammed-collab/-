@@ -124,7 +124,15 @@ app.post('/send', auth, async (req, res) => {
 // ========================================
 async function start() {
     try {
-        // 1️⃣ اتصل بـ MongoDB أولاً وانتظر الاتصال
+        // 1️⃣ شغّل Express أولاً حتى لا يفشل فحص Render الصحي
+        await new Promise((resolve) => {
+            app.listen(port, '0.0.0.0', () => {
+                console.log(`🚀 Server running on port ${port}`);
+                resolve();
+            });
+        });
+
+        // 2️⃣ اتصل بـ MongoDB
         console.log('🔄 Connecting to MongoDB...');
         await mongoose.connect(process.env.MONGODB_URI, {
             maxPoolSize: 5,
@@ -133,16 +141,21 @@ async function start() {
         });
         console.log('✅ MongoDB Connected');
 
-        // 2️⃣ أنشئ MongoStore بعد اكتمال الاتصال
+        // 3️⃣ أنشئ MongoStore بعد اكتمال الاتصال
         const store = new MongoStore({ mongoose: mongoose });
 
-        // 3️⃣ أنشئ WhatsApp Client
+        // 4️⃣ أنشئ WhatsApp Client
         client = new Client({
             authStrategy: new RemoteAuth({
                 clientId: 'whatsapp-otp-bot',
                 store: store,
-                backupSyncIntervalMs: 600000
+                backupSyncIntervalMs: 300000 // كل 5 دقائق لحفظ الجلسة بشكل أسرع
             }),
+            webVersion: '2.3000.1032169565', // نسخة ثابتة — لا تحميل إضافي
+            webVersionCache: {
+                type: 'remote',
+                remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1032169565.html'
+            },
             puppeteer: {
                 headless: true,
                 executablePath: process.env.CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
@@ -175,11 +188,10 @@ async function start() {
                     '--use-mock-keychain',
                     '--disable-blink-features=AutomationControlled'
                 ],
-            },
-            webVersionCache: { type: 'none' }
+            }
         });
 
-        // 4️⃣ ربط Events (بعد إنشاء الـ Client)
+        // 5️⃣ ربط Events
         client.on('qr', (qr) => {
             console.log('📱 QR Code Generated — go to /qr to scan');
             qrCode = qr;
@@ -204,21 +216,16 @@ async function start() {
             isReady = false;
         });
 
-        // 5️⃣ شغّل WhatsApp
+        // 6️⃣ شغّل WhatsApp (بعد Express)
         console.log('🔄 Initializing WhatsApp...');
+        console.log(`📊 Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
         client.initialize();
-
-        // 6️⃣ شغّل Express Server
-        app.listen(port, '0.0.0.0', () => {
-            console.log(`🚀 Server running on port ${port}`);
-            console.log(`📊 Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
-        });
 
         // Graceful Shutdown
         process.on('SIGTERM', async () => {
             console.log('🛑 Graceful shutdown...');
-            if (client) await client.destroy();
-            await mongoose.disconnect();
+            try { if (client) await client.destroy(); } catch (e) { }
+            try { await mongoose.disconnect(); } catch (e) { }
             process.exit(0);
         });
 
