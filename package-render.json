@@ -1,0 +1,26 @@
+{
+    "name": "whatsapp-bot-render",
+    "version": "1.0.0",
+    "main": "index-optimized.js",
+    "scripts": {
+        "start": "node --expose-gc index-optimized.js"
+    },
+    "keywords": [
+        "whatsapp",
+        "bot"
+    ],
+    "author": "",
+    "license": "ISC",
+    "description": "Optimized WhatsApp Bot for Render",
+    "engines": {
+        "node": ">=18.0.0"
+    },
+    "dependencies": {
+        "dotenv": "^16.4.1",
+        "express": "^4.18.2",
+        "mongoose": "^8.1.0",
+        "qrcode": "^1.5.3",
+        "whatsapp-web.js": "^1.23.0",
+        "wwebjs-mongo": "^1.1.0"
+    }
+}

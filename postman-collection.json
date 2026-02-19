@@ -1,0 +1,318 @@
+{
+    "info": {
+        "name": "WhatsApp OTP Bot API",
+        "description": "مجموعة كاملة من endpoints بوت إرسال رسائل OTP عبر واتساب",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://localhost:3000",
+            "type": "string"
+        },
+        {
+            "key": "api_key",
+            "value": "my_scrt_whatsapp_api_key_2026",
+            "type": "string"
+        },
+        {
+            "key": "test_phone",
+            "value": "249912345678",
+            "type": "string"
+        }
+    ],
+    "item": [
+        {
+            "name": "1. Bot Status",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{base_url}}/status",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "status"
+                    ]
+                },
+                "description": "التحقق من حالة البوت (متصل أم لا)"
+            },
+            "response": []
+        },
+        {
+            "name": "2. Get QR Code",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{base_url}}/qr",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "qr"
+                    ]
+                },
+                "description": "الحصول على QR Code لربط واتساب"
+            },
+            "response": []
+        },
+        {
+            "name": "3. Send OTP",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                    },
+                    {
+                        "key": "x-api-key",
+                        "value": "{{api_key}}",
+                        "type": "text"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"phone\": \"{{test_phone}}\"\n}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/send-otp",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "send-otp"
+                    ]
+                },
+                "description": "إرسال OTP من قاعدة البيانات عبر واتساب"
+            },
+            "response": [
+                {
+                    "name": "Success Response",
+                    "originalRequest": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "x-api-key",
+                                "value": "{{api_key}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"phone\": \"249912345678\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/send-otp",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "send-otp"
+                            ]
+                        }
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "_postman_previewlanguage": "json",
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"success\": true,\n  \"message\": \"OTP sent successfully via WhatsApp\",\n  \"messageId\": \"true_249912345678@c.us_3EB0XXXXX\"\n}"
+                },
+                {
+                    "name": "User Not Found",
+                    "originalRequest": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "x-api-key",
+                                "value": "{{api_key}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"phone\": \"249999999999\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/send-otp",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "send-otp"
+                            ]
+                        }
+                    },
+                    "status": "Not Found",
+                    "code": 404,
+                    "_postman_previewlanguage": "json",
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"success\": false,\n  \"message\": \"User not found in database\"\n}"
+                }
+            ]
+        },
+        {
+            "name": "4. Resend OTP",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                    },
+                    {
+                        "key": "x-api-key",
+                        "value": "{{api_key}}",
+                        "type": "text"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"phone\": \"{{test_phone}}\"\n}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/resend-otp",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "resend-otp"
+                    ]
+                },
+                "description": "إعادة إرسال OTP للمستخدم"
+            },
+            "response": []
+        },
+        {
+            "name": "5. Check OTP Status",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "x-api-key",
+                        "value": "{{api_key}}",
+                        "type": "text"
+                    }
+                ],
+                "url": {
+                    "raw": "{{base_url}}/otp-status/{{test_phone}}",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "otp-status",
+                        "{{test_phone}}"
+                    ]
+                },
+                "description": "التحقق من حالة OTP للمستخدم"
+            },
+            "response": [
+                {
+                    "name": "Success Response",
+                    "originalRequest": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "x-api-key",
+                                "value": "{{api_key}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/otp-status/249912345678",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "otp-status",
+                                "249912345678"
+                            ]
+                        }
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "_postman_previewlanguage": "json",
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"success\": true,\n  \"phone\": \"249912345678\",\n  \"hasOTP\": true,\n  \"isVerified\": false,\n  \"otpSentAt\": \"2026-01-20T09:00:00.000Z\",\n  \"otpSentStatus\": \"sent\"\n}"
+                }
+            ]
+        },
+        {
+            "name": "6. Send Custom Message",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                    },
+                    {
+                        "key": "x-api-key",
+                        "value": "{{api_key}}",
+                        "type": "text"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"number\": \"{{test_phone}}\",\n  \"message\": \"مرحباً! هذه رسالة تجريبية من البوت 🤖\"\n}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/send-message",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "send-message"
+                    ]
+                },
+                "description": "إرسال رسالة مخصصة (الوظيفة الأصلية)"
+            },
+            "response": []
+        }
+    ],
+    "event": [
+        {
+            "listen": "prerequest",
+            "script": {
+                "type": "text/javascript",
+                "exec": [
+                    ""
+                ]
+            }
+        },
+        {
+            "listen": "test",
+            "script": {
+                "type": "text/javascript",
+                "exec": [
+                    ""
+                ]
+            }
+        }
+    ]
+}
