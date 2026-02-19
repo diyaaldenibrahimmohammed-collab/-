@@ -14,7 +14,7 @@ app.use(bodyParser.json({ limit: '1mb' }));
 app.disable('x-powered-by');
 
 // ========================================
-// Variables (محدَّثة من داخل start())
+// Variables
 // ========================================
 let qrCode = null;
 let isReady = false;
@@ -80,7 +80,7 @@ app.get('/qr', (req, res) => {
     });
 });
 
-// ✅ Send OTP Message — متوافق مع whatsappService.js الذي يرسل إلى /send-message
+// ✅ Send OTP Message
 app.post('/send-message', auth, async (req, res) => {
     const { number, message } = req.body;
 
@@ -113,18 +113,18 @@ app.post('/send-message', auth, async (req, res) => {
     }
 });
 
-// ✅ Alias: /send (للتوافق العام)
+// ✅ Alias: /send
 app.post('/send', auth, async (req, res) => {
     req.url = '/send-message';
     app._router.handle(req, res, () => { });
 });
 
 // ========================================
-// Start — بالترتيب الصحيح
+// Start Process
 // ========================================
 async function start() {
     try {
-        // 1️⃣ شغّل Express أولاً حتى لا يفشل فحص Render الصحي
+        // 1️⃣ شغّل Express أولاً
         await new Promise((resolve) => {
             app.listen(port, '0.0.0.0', () => {
                 console.log(`🚀 Server running on port ${port}`);
@@ -141,7 +141,7 @@ async function start() {
         });
         console.log('✅ MongoDB Connected');
 
-        // 3️⃣ أنشئ MongoStore بعد اكتمال الاتصال
+        // 3️⃣ أنشئ MongoStore
         const store = new MongoStore({ mongoose: mongoose });
 
         // 4️⃣ أنشئ WhatsApp Client
@@ -149,9 +149,9 @@ async function start() {
             authStrategy: new RemoteAuth({
                 clientId: 'whatsapp-otp-bot',
                 store: store,
-                backupSyncIntervalMs: 60000 // ✅ احفظ الجلسة كل دقيقة (الحد الأدنى المسموح به)
+                backupSyncIntervalMs: 300000 // ✅ تم التعديل إلى 5 دقائق لحل مشكلة الخطأ وتخفيف الضغط
             }),
-            webVersion: '2.3000.1032169565', // نسخة ثابتة — لا تحميل إضافي
+            webVersion: '2.3000.1032169565',
             webVersionCache: {
                 type: 'remote',
                 remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1032169565.html'
@@ -217,7 +217,7 @@ async function start() {
             isReady = false;
         });
 
-        // 6️⃣ شغّل WhatsApp (بعد Express)
+        // 6️⃣ شغّل WhatsApp
         console.log('🔄 Initializing WhatsApp...');
         console.log(`📊 Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
         client.initialize();
