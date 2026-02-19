@@ -9,157 +9,123 @@ const bodyParser = require('body-parser');
 const app = express();
 const port = process.env.PORT || 10000;
 
-// Middleware - minimal
-app.use(bodyParser.json({ limit: '1mb' })); // حد صغير للـ JSON
-app.disable('x-powered-by'); // إخفاء معلومات Express
+// Middleware
+app.use(bodyParser.json({ limit: '1mb' }));
+app.disable('x-powered-by');
 
 // ========================================
-// Variables
+// Variables (محدَّثة من داخل start())
 // ========================================
 let qrCode = null;
 let isReady = false;
-let client = null; // سيُنشأ بعد اتصال MongoDB
+let client = null;
 
 // ========================================
-// Events
-// ========================================
-client.on('qr', (qr) => {
-    console.log('📱 QR Code Generated');
-    qrCode = qr;
-});
-
-client.on('ready', () => {
-    console.log('✅ WhatsApp Client Ready!');
-    isReady = true;
-    qrCode = null;
-
-    // تنظيف الذاكرة
-    if (global.gc) {
-        global.gc();
-    }
-});
-
-client.on('authenticated', () => {
-    console.log('🔐 Authenticated');
-});
-
-client.on('auth_failure', (msg) => {
-    console.error('❌ Auth Failure:', msg);
-});
-
-client.on('disconnected', () => {
-    console.log('⚠️ Disconnected');
-    isReady = false;
-});
-
-// معالجة الرسائل - مبسطة
-client.on('message', async (msg) => {
-    try {
-        const text = msg.body.toLowerCase().trim();
-
-        if (text === 'ping') {
-            await msg.reply('pong');
-        }
-    } catch (error) {
-        console.error('❌ Message Error:', error.message);
-    }
-});
-
-// ========================================
-// API Endpoints - مبسطة
-// ========================================
-
 // Auth Middleware
+// ========================================
 const auth = (req, res, next) => {
     const key = req.headers['x-api-key'];
-    if (key === process.env.API_KEY) {
+    if (key && key === process.env.API_KEY) {
         next();
     } else {
-        res.status(401).json({ error: 'Unauthorized' });
+        res.status(401).json({ success: false, error: 'Unauthorized' });
     }
 };
 
-// Status
+// ========================================
+// API Endpoints
+// ========================================
+
+// Health check / Status
 app.get('/status', (req, res) => {
     res.json({
-        status: isReady ? 'ready' : 'not_ready',
+        success: true,
+        status: isReady ? 'Connected' : 'Disconnected',
         uptime: process.uptime(),
         memory: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + 'MB'
     });
 });
 
-// QR Code
+// QR Code page
 app.get('/qr', (req, res) => {
     if (isReady) {
-        return res.send('<h2>✅ Already Connected</h2>');
+        return res.send('<h2>✅ Already Connected to WhatsApp</h2><p><a href="/status">Check Status</a></p>');
     }
-
     if (!qrCode) {
-        return res.send('<h2>⏳ Waiting for QR...</h2><script>setTimeout(() => location.reload(), 3000);</script>');
+        return res.send('<h2>⏳ Waiting for QR Code...</h2><script>setTimeout(() => location.reload(), 3000);</script>');
     }
-
     QRCode.toDataURL(qrCode, (err, url) => {
-        if (err) return res.status(500).send('Error');
+        if (err) return res.status(500).send('Error generating QR');
         res.send(`
             <div style="text-align:center;padding:50px;font-family:sans-serif;">
-                <h2>📱 Scan QR Code</h2>
-                <img src="${url}" style="width:300px;">
+                <h2>📱 Scan QR Code with WhatsApp</h2>
+                <img src="${url}" style="width:300px;display:block;margin:20px auto;">
                 <p><a href="/status">Check Status</a></p>
             </div>
         `);
     });
 });
 
-// Send Message
-app.post('/send', auth, async (req, res) => {
+// ✅ Send OTP Message — متوافق مع whatsappService.js الذي يرسل إلى /send-message
+app.post('/send-message', auth, async (req, res) => {
     const { number, message } = req.body;
 
     if (!number || !message) {
-        return res.status(400).json({ error: 'Missing fields' });
+        return res.status(400).json({ success: false, message: 'Missing number or message' });
     }
 
     if (!isReady) {
-        return res.status(503).json({ error: 'Not ready' });
+        return res.status(503).json({ success: false, message: 'WhatsApp not ready. Please scan QR.' });
     }
 
     try {
         const cleanNumber = number.replace(/[^0-9]/g, '');
         const formattedNumber = cleanNumber.startsWith('249') ? cleanNumber : `249${cleanNumber}`;
 
-        const numberId = await client.getNumberId(formattedNumber);
+        console.log(`📞 Sending OTP to: ${formattedNumber}`);
 
+        const numberId = await client.getNumberId(formattedNumber);
         if (!numberId) {
-            return res.status(404).json({ error: 'Number not found' });
+            return res.status(404).json({ success: false, message: 'Number not registered on WhatsApp' });
         }
 
-        await client.sendMessage(numberId._serialized, message);
-        res.json({ success: true });
+        const response = await client.sendMessage(numberId._serialized, message, { sendSeen: false });
+        console.log(`✅ OTP sent to ${formattedNumber}`);
+        res.json({ success: true, message: 'Message sent', data: response.id });
+
     } catch (error) {
         console.error('❌ Send Error:', error.message);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ success: false, message: 'Failed to send message', error: error.message });
     }
 });
 
+// ✅ Alias: /send (للتوافق العام)
+app.post('/send', auth, async (req, res) => {
+    req.url = '/send-message';
+    app._router.handle(req, res, () => { });
+});
+
 // ========================================
-// Start Server
+// Start — بالترتيب الصحيح
 // ========================================
 async function start() {
     try {
-        // 1️⃣ اتصل بـ MongoDB أولاً
+        // 1️⃣ اتصل بـ MongoDB أولاً وانتظر الاتصال
         console.log('🔄 Connecting to MongoDB...');
         await mongoose.connect(process.env.MONGODB_URI, {
             maxPoolSize: 5,
-            serverSelectionTimeoutMS: 10000,
+            serverSelectionTimeoutMS: 15000,
             socketTimeoutMS: 45000,
         });
         console.log('✅ MongoDB Connected');
 
-        // 2️⃣ بعد الاتصال، أنشئ MongoStore والـ Client
+        // 2️⃣ أنشئ MongoStore بعد اكتمال الاتصال
         const store = new MongoStore({ mongoose: mongoose });
 
+        // 3️⃣ أنشئ WhatsApp Client
         client = new Client({
             authStrategy: new RemoteAuth({
-                clientId: 'whatsapp-bot',
+                clientId: 'whatsapp-otp-bot',
                 store: store,
                 backupSyncIntervalMs: 600000
             }),
@@ -200,30 +166,44 @@ async function start() {
             webVersionCache: { type: 'none' }
         });
 
-        // 3️⃣ ربط Events
-        client.on('qr', (qr) => { console.log('📱 QR Code Generated'); qrCode = qr; });
-        client.on('ready', () => { console.log('✅ WhatsApp Client Ready!'); isReady = true; qrCode = null; if (global.gc) global.gc(); });
-        client.on('authenticated', () => console.log('🔐 Authenticated'));
-        client.on('auth_failure', (msg) => console.error('❌ Auth Failure:', msg));
-        client.on('disconnected', () => { console.log('⚠️ Disconnected'); isReady = false; });
-        client.on('message', async (msg) => {
-            try { if (msg.body.toLowerCase().trim() === 'ping') await msg.reply('pong'); }
-            catch (e) { console.error('❌ Message Error:', e.message); }
+        // 4️⃣ ربط Events (بعد إنشاء الـ Client)
+        client.on('qr', (qr) => {
+            console.log('📱 QR Code Generated — go to /qr to scan');
+            qrCode = qr;
         });
 
-        // 4️⃣ شغّل WhatsApp
+        client.on('ready', () => {
+            console.log('✅ WhatsApp Client READY!');
+            isReady = true;
+            qrCode = null;
+            if (global.gc) global.gc();
+        });
+
+        client.on('authenticated', () => console.log('🔐 Authenticated'));
+
+        client.on('auth_failure', (msg) => {
+            console.error('❌ Auth Failure:', msg);
+            isReady = false;
+        });
+
+        client.on('disconnected', (reason) => {
+            console.log(`⚠️ Disconnected: ${reason}`);
+            isReady = false;
+        });
+
+        // 5️⃣ شغّل WhatsApp
         console.log('🔄 Initializing WhatsApp...');
         client.initialize();
 
-        // 5️⃣ شغّل Express
+        // 6️⃣ شغّل Express Server
         app.listen(port, '0.0.0.0', () => {
-            console.log(`🚀 Server: http://localhost:${port}`);
+            console.log(`🚀 Server running on port ${port}`);
             console.log(`📊 Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
         });
 
         // Graceful Shutdown
         process.on('SIGTERM', async () => {
-            console.log('🛑 Shutting down...');
+            console.log('🛑 Graceful shutdown...');
             if (client) await client.destroy();
             await mongoose.disconnect();
             process.exit(0);
@@ -239,7 +219,7 @@ async function start() {
 setInterval(() => {
     if (global.gc) {
         global.gc();
-        console.log(`🧹 Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
+        console.log(`🧹 GC done. Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
     }
 }, 600000);
 
