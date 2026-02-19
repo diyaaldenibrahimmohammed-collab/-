@@ -37,6 +37,20 @@ const auth = (req, res, next) => {
 // ========================================
 
 // Health check / Status
+app.get('/', (req, res) => {
+    res.send(`
+        <div style="font-family: sans-serif; text-align: center; padding: 50px;">
+            <h1>🤖 WhatsApp OTP Bot</h1>
+            <p>Server is running.</p>
+            <div style="margin: 20px;">
+                <a href="/qr" style="background: #25D366; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin: 0 10px;">📱 Connect WhatsApp</a>
+                <a href="/status" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin: 0 10px;">📊 Check Status</a>
+            </div>
+        </div>
+    `);
+});
+
+// Status
 app.get('/status', (req, res) => {
     res.json({
         success: true,
