@@ -14,78 +14,11 @@ app.use(bodyParser.json({ limit: '1mb' })); // حد صغير للـ JSON
 app.disable('x-powered-by'); // إخفاء معلومات Express
 
 // ========================================
-// MongoDB Connection
-// ========================================
-mongoose.connect(process.env.MONGODB_URI, {
-    maxPoolSize: 5, // تقليل عدد الاتصالات
-    serverSelectionTimeoutMS: 5000,
-    socketTimeoutMS: 45000,
-}).then(() => {
-    console.log('✅ MongoDB Connected');
-}).catch(err => {
-    console.error('❌ MongoDB Error:', err);
-    process.exit(1);
-});
-
-// ========================================
-// MongoDB Store للجلسات
-// ========================================
-const store = new MongoStore({ mongoose: mongoose });
-
-// ========================================
 // Variables
 // ========================================
 let qrCode = null;
 let isReady = false;
-
-// ========================================
-// WhatsApp Client - إعدادات محسّنة للذاكرة
-// ========================================
-const client = new Client({
-    authStrategy: new RemoteAuth({
-        clientId: 'whatsapp-bot',
-        store: store,
-        backupSyncIntervalMs: 600000 // كل 10 دقائق بدلاً من 5
-    }),
-    puppeteer: {
-        headless: true,
-        executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome-stable',
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--no-first-run',
-            '--no-zygote',
-            '--single-process', // مهم: عملية واحدة فقط
-            '--disable-gpu',
-            '--disable-software-rasterizer',
-            '--disable-extensions',
-            '--disable-background-networking',
-            '--disable-background-timer-throttling',
-            '--disable-backgrounding-occluded-windows',
-            '--disable-breakpad',
-            '--disable-component-extensions-with-background-pages',
-            '--disable-features=TranslateUI,BlinkGenPropertyTrees',
-            '--disable-ipc-flooding-protection',
-            '--disable-renderer-backgrounding',
-            '--enable-features=NetworkService,NetworkServiceInProcess',
-            '--force-color-profile=srgb',
-            '--hide-scrollbars',
-            '--metrics-recording-only',
-            '--mute-audio',
-            '--no-default-browser-check',
-            '--no-pings',
-            '--password-store=basic',
-            '--use-mock-keychain',
-            '--disable-blink-features=AutomationControlled'
-        ],
-    },
-    // تقليل حجم الكاش
-    webVersionCache: {
-        type: 'none' // عدم حفظ نسخة الويب محلياً
-    }
-});
+let client = null; // سيُنشأ بعد اتصال MongoDB
 
 // ========================================
 // Events
@@ -212,11 +145,77 @@ app.post('/send', auth, async (req, res) => {
 // ========================================
 async function start() {
     try {
-        // Initialize WhatsApp Client
-        console.log('🔄 Initializing...');
+        // 1️⃣ اتصل بـ MongoDB أولاً
+        console.log('🔄 Connecting to MongoDB...');
+        await mongoose.connect(process.env.MONGODB_URI, {
+            maxPoolSize: 5,
+            serverSelectionTimeoutMS: 10000,
+            socketTimeoutMS: 45000,
+        });
+        console.log('✅ MongoDB Connected');
+
+        // 2️⃣ بعد الاتصال، أنشئ MongoStore والـ Client
+        const store = new MongoStore({ mongoose: mongoose });
+
+        client = new Client({
+            authStrategy: new RemoteAuth({
+                clientId: 'whatsapp-bot',
+                store: store,
+                backupSyncIntervalMs: 600000
+            }),
+            puppeteer: {
+                headless: true,
+                executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome-stable',
+                args: [
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-accelerated-2d-canvas',
+                    '--no-first-run',
+                    '--no-zygote',
+                    '--single-process',
+                    '--disable-gpu',
+                    '--disable-software-rasterizer',
+                    '--disable-extensions',
+                    '--disable-background-networking',
+                    '--disable-background-timer-throttling',
+                    '--disable-backgrounding-occluded-windows',
+                    '--disable-breakpad',
+                    '--disable-component-extensions-with-background-pages',
+                    '--disable-features=TranslateUI,BlinkGenPropertyTrees',
+                    '--disable-ipc-flooding-protection',
+                    '--disable-renderer-backgrounding',
+                    '--enable-features=NetworkService,NetworkServiceInProcess',
+                    '--force-color-profile=srgb',
+                    '--hide-scrollbars',
+                    '--metrics-recording-only',
+                    '--mute-audio',
+                    '--no-default-browser-check',
+                    '--no-pings',
+                    '--password-store=basic',
+                    '--use-mock-keychain',
+                    '--disable-blink-features=AutomationControlled'
+                ],
+            },
+            webVersionCache: { type: 'none' }
+        });
+
+        // 3️⃣ ربط Events
+        client.on('qr', (qr) => { console.log('📱 QR Code Generated'); qrCode = qr; });
+        client.on('ready', () => { console.log('✅ WhatsApp Client Ready!'); isReady = true; qrCode = null; if (global.gc) global.gc(); });
+        client.on('authenticated', () => console.log('🔐 Authenticated'));
+        client.on('auth_failure', (msg) => console.error('❌ Auth Failure:', msg));
+        client.on('disconnected', () => { console.log('⚠️ Disconnected'); isReady = false; });
+        client.on('message', async (msg) => {
+            try { if (msg.body.toLowerCase().trim() === 'ping') await msg.reply('pong'); }
+            catch (e) { console.error('❌ Message Error:', e.message); }
+        });
+
+        // 4️⃣ شغّل WhatsApp
+        console.log('🔄 Initializing WhatsApp...');
         client.initialize();
 
-        // Start Express
+        // 5️⃣ شغّل Express
         app.listen(port, '0.0.0.0', () => {
             console.log(`🚀 Server: http://localhost:${port}`);
             console.log(`📊 Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
@@ -225,7 +224,7 @@ async function start() {
         // Graceful Shutdown
         process.on('SIGTERM', async () => {
             console.log('🛑 Shutting down...');
-            await client.destroy();
+            if (client) await client.destroy();
             await mongoose.disconnect();
             process.exit(0);
         });
