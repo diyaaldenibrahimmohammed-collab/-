@@ -149,7 +149,7 @@ async function start() {
             authStrategy: new RemoteAuth({
                 clientId: 'whatsapp-otp-bot',
                 store: store,
-                backupSyncIntervalMs: 300000 // كل 5 دقائق لحفظ الجلسة بشكل أسرع
+                backupSyncIntervalMs: 10000 // ✅ احفظ الجلسة كل 10 ثوانٍ فقط
             }),
             webVersion: '2.3000.1032169565', // نسخة ثابتة — لا تحميل إضافي
             webVersionCache: {
@@ -205,6 +205,7 @@ async function start() {
         });
 
         client.on('authenticated', () => console.log('🔐 Authenticated'));
+        client.on('remote_session_saved', () => console.log('💾 Session saved to MongoDB!'));
 
         client.on('auth_failure', (msg) => {
             console.error('❌ Auth Failure:', msg);
