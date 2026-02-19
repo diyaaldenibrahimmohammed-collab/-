@@ -34,7 +34,7 @@ COPY package-render.json ./package.json
 COPY package-lock.json* ./
 
 # Install dependencies
-RUN npm ci --only=production --no-audit --no-fund
+RUN npm install --only=production --no-audit --no-fund
 
 # Copy app code
 COPY index-optimized.js ./
