@@ -153,7 +153,6 @@ async function start() {
                     '--disable-accelerated-2d-canvas',
                     '--no-first-run',
                     '--no-zygote',
-                    '--single-process',
                     '--disable-gpu',
                     '--disable-software-rasterizer',
                     '--disable-extensions',
