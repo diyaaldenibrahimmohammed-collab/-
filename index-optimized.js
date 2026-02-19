@@ -131,7 +131,7 @@ async function start() {
             }),
             puppeteer: {
                 headless: true,
-                executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome-stable',
+                executablePath: process.env.CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
                 args: [
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
