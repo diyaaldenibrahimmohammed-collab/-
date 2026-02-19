@@ -149,7 +149,7 @@ async function start() {
             authStrategy: new RemoteAuth({
                 clientId: 'whatsapp-otp-bot',
                 store: store,
-                backupSyncIntervalMs: 10000 // ✅ احفظ الجلسة كل 10 ثوانٍ فقط
+                backupSyncIntervalMs: 60000 // ✅ احفظ الجلسة كل دقيقة (الحد الأدنى المسموح به)
             }),
             webVersion: '2.3000.1032169565', // نسخة ثابتة — لا تحميل إضافي
             webVersionCache: {
